@@ -21,8 +21,6 @@ test.describe("New room", () => {
     await createNewRoom(page, "nameOnly")
 
     await expect(page.getByText("Live Preview")).toBeVisible()
-
-    await page.close()
   })
 
   test("should allow me to create new room full filled fields", async ({
@@ -34,13 +32,35 @@ test.describe("New room", () => {
     await createNewRoom(page, "full")
 
     await expect(page.getByText("Live Preview")).toBeVisible()
+  })
+
+  test("should allow me to create new room with disabled chat", async ({
+    page
+  }) => {
+    await expect(page).toHaveURL(/rooms/)
+
+    // Create new room
+    await createNewRoom(page, "disabledChat")
+
+    await expect(page.getByText("Live Preview")).toBeVisible()
+  })
+
+  test.afterEach(async ({ page }) => {
+    await endLiveStream(page)
 
     await page.close()
   })
 })
 
 test.describe("Join room", () => {
-  test.beforeEach(async ({ page }) => {
+  test.beforeEach(async ({ page }, testInfo) => {
+    if (
+      testInfo.title === "should allow me to see join live room notification"
+    ) {
+      await createNewRoom(page, "disabledChat")
+      return
+    }
+
     // Create new room
     await createNewRoom(page, "nameOnly")
   })
@@ -95,17 +115,17 @@ test.describe("Join room", () => {
 
     await endLiveStream(page)
 
-    // Clean up
     await page.close()
 
     await newPage.close()
   })
 
-  test("should increase the number of audience when multiple members join the live stream", async ({
+  test("should increase the number of audience correctly when multiple members join the live stream", async ({
     page,
     browser
   }) => {
-    const audienceAccounts = CREDENTIALS.slice(1)
+    // Can only sign in 4 accounts at the same time?
+    const audienceAccounts = CREDENTIALS.slice(1, 4)
 
     for (let index = 0; index < audienceAccounts.length; index++) {
       const account = audienceAccounts[index]
@@ -113,7 +133,7 @@ test.describe("Join room", () => {
       const newPage = await browser.newPage()
       await newPage.goto(PAGE_ENDPOINT)
 
-      await page.waitForTimeout(1)
+      await newPage.waitForTimeout(1)
 
       // Sign In with another account
       await login(newPage, account)
@@ -121,14 +141,13 @@ test.describe("Join room", () => {
       await newPage.getByText("Automation Room 1").first().click()
     }
 
-    return
     await page.getByText("Total Views").click()
 
     await page.waitForTimeout(2)
 
     // create a member locator
     const memberCount = page.getByRole("heading", {
-      name: `Total Views (${CREDENTIALS.length - 2})`
+      name: `Total Views (${audienceAccounts.length})`
     })
 
     await expect(memberCount).toBeVisible()
@@ -138,14 +157,72 @@ test.describe("Join room", () => {
     await endLiveStream(page)
 
     // Clean up
-    // await page.close()
+    await page.close()
   })
 
-  // test("should allow me to leave room", async ({ page }) => {
-  //   await endLiveStream(page)
+  test("should allow me to chat in live room", async ({ browser, page }) => {
+    // Create a new page.
+    const newPage = await browser.newPage()
+    await newPage.goto(PAGE_ENDPOINT)
 
-  //   await expect(page).toHaveURL(/rooms/)
-  // })
+    // Sign In with another account
+    await login(newPage, CREDENTIALS[1])
+
+    await newPage.getByText("Automation Room 1").first().click()
+
+    // member join successful
+    await expect(newPage.getByText("duyvo1").first()).toBeVisible()
+
+    // Wait for connecting to Agora-chat
+    await newPage.waitForTimeout(3)
+
+    // Send a message
+    const chatField = await newPage.getByPlaceholder("Send a message")
+    if (chatField) {
+      await chatField.fill("hello the host")
+      await newPage.waitForTimeout(1)
+      await chatField.press("Enter")
+    }
+
+    // Wait message sent because we're using third party
+    // this might be having a little delay in receive a message
+    await page.waitForTimeout(3)
+
+    await expect(page.getByText("hello the host")).toBeVisible()
+
+    await endLiveStream(page)
+
+    await newPage.close()
+
+    await page.close()
+  })
+
+  test("should allow me to see join live room notification", async ({
+    browser,
+    page
+  }) => {
+    // Create a new page.
+    const newPage = await browser.newPage()
+    await newPage.goto(PAGE_ENDPOINT)
+
+    // Sign In with another account
+    await login(newPage, CREDENTIALS[1])
+
+    await newPage.getByText("Automation Room 1").first().click()
+
+    // member join successful
+    await expect(newPage.getByText("duyvo1").first()).toBeVisible()
+
+    // Wait for the join notificat(ion visible in the chat
+    await expect(page.getByText(CREDENTIALS[1].username)).toBeVisible()
+    await expect(page.getByText("has joined the room")).toBeVisible()
+
+    await endLiveStream(page)
+
+    await newPage.close()
+
+    await page.close()
+  })
 })
 
 async function login(page: Page, { username, password }) {
@@ -161,19 +238,29 @@ async function login(page: Page, { username, password }) {
   await pwdField.fill(password)
   await pwdField.press("Enter")
 
+  await page.waitForTimeout(2)
+
   // Select layout
   await page.getByRole("button", { name: "LiveCast" }).click()
 }
 
-async function createNewRoom(page: Page, type: "full" | "nameOnly") {
+async function createNewRoom(
+  page: Page,
+  type: "full" | "nameOnly" | "disabledChat"
+) {
   // New room
   await page.getByRole("button", { name: "Go Live" }).click()
   // Fill room
   const roomName = page.locator('input[name="name"]')
   const roomDesc = page.locator('textarea[name="description"]')
+  const roomChatSwitch = page.locator('input[name="allowChatting"]')
 
   if (type === "full") {
     roomDesc.fill("Automation room description")
+  }
+
+  if (type === "disabledChat") {
+    roomChatSwitch.click()
   }
 
   const goLiveButton = page.getByRole("button", { name: "Go Live" })
