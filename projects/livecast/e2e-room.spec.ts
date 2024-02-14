@@ -1,6 +1,7 @@
 import { test, expect, type Page } from "@playwright/test"
 
 import { CREDENTIALS } from "./config-global"
+import { login } from "./utils"
 
 const PAGE_ENDPOINT = "https://app.livecast.solutions/"
 
@@ -225,25 +226,6 @@ test.describe("Join room", () => {
   })
 })
 
-async function login(page: Page, { username, password }) {
-  await page.getByRole("button", { name: "Use username instead" }).click()
-
-  // Create sign in locator
-  const usernameField = page.getByPlaceholder("Username")
-
-  const pwdField = page.getByPlaceholder("Password")
-
-  // Fill value
-  await usernameField.fill(username)
-  await pwdField.fill(password)
-  await pwdField.press("Enter")
-
-  await page.waitForTimeout(2)
-
-  // Select layout
-  await page.getByRole("button", { name: "LiveCast" }).click()
-}
-
 async function createNewRoom(
   page: Page,
   type: "full" | "nameOnly" | "disabledChat"
@@ -263,10 +245,10 @@ async function createNewRoom(
     roomChatSwitch.click()
   }
 
-  const goLiveButton = page.getByRole("button", { name: "Go Live" })
+  const goLiveBtn = page.getByRole("button", { name: "Go Live" })
 
   await roomName.fill("Automation room 1")
-  await goLiveButton.click()
+  await goLiveBtn.click()
 }
 
 async function endLiveStream(page: Page) {

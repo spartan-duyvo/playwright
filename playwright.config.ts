@@ -25,9 +25,9 @@ export default defineConfig({
   use: {
     video: "on",
     contextOptions: { recordVideo: { dir: "./videos" } },
-    // launchOptions: {
-    //   slowMo: 1000
-    // },
+    launchOptions: {
+      slowMo: 1000
+    },
     /* Base URL to use in actions like `await page.goto('/')`. */
     // baseURL: 'http://127.0.0.1:3000',
 
