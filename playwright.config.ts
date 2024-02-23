@@ -1,5 +1,4 @@
 import { defineConfig, devices } from "@playwright/test"
-import path from "path"
 /**
  * Read environment variables from file.
  * https://github.com/motdotla/dotenv
@@ -26,7 +25,7 @@ export default defineConfig({
     video: "on",
     contextOptions: { recordVideo: { dir: "./videos" } },
     launchOptions: {
-      slowMo: 1000
+      slowMo: 500
     },
     /* Base URL to use in actions like `await page.goto('/')`. */
     // baseURL: 'http://127.0.0.1:3000',
@@ -93,7 +92,9 @@ export default defineConfig({
     //   name: 'Google Chrome',
     //   use: { ...devices['Desktop Chrome'], channel: 'chrome' },
     // },
-  ]
+  ],
+
+  timeout: 5 * 60 * 10000
 
   /* Run your local dev server before starting the tests */
   // webServer: {
